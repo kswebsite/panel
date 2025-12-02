@@ -1,0 +1,107 @@
+name: Panel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: pterodactyl
+  cancel-in-progress: true
+
+jobs:
+  panel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+
+      - name: Download latest backup from Releases
+        continue-on-error: true
+        uses: robinraju/release-downloader@v1.11
+        with:
+          tag: backups
+          fileName: "pterodactyl-backup.tar.gz"
+          out-file-path: "."
+
+      - name: Restore backup
+        run: |
+          sudo mkdir -p $HOME/ks
+          cd $HOME/ks
+          if [ -f "${GITHUB_WORKSPACE}/pterodactyl-backup.tar.gz" ]; then
+            echo "🔄 Found backup"
+            sudo rm -rf pterodactyl
+            sudo tar -xzf "${GITHUB_WORKSPACE}/pterodactyl-backup.tar.gz" -C .
+            echo "✅ Backup restored"
+          else
+            echo "⚠️ No backup found"
+            sudo mkdir -p pterodactyl/panel
+          fi
+
+      - name: Cloudflare Tunnel
+        run: |
+          sudo curl -L "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" -o /usr/local/bin/cloudflared
+          sudo chmod +x /usr/local/bin/cloudflared
+          sudo cloudflared service install [key]
+      
+      - name: Start Panel
+        run: |
+          cd $HOME/ks/pterodactyl/panel
+          rm docker-compose.yml
+          wget https://raw.githubusercontent.com/kswebsite/panel/refs/heads/main/docker-compose.yml
+          docker-compose up -d
+          echo "✅ Panel started."
+          
+      - name: Keep Alive
+        run: |
+          echo "⏳"
+          sleep 20000
+          
+      - name: Start Tmate
+        if: always()
+        run: |
+          curl -sL https://github.com/tmate-io/tmate/releases/latest/download/tmate-2.4.0-static-linux-amd64.tar.xz | tar -xJ
+          sudo mv tmate-2.4.0-static-linux-amd64/tmate /usr/local/bin/ || true
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait tmate-ready
+          tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' || true
+          sleep 500
+
+      - name: Stop Panel
+        run: |
+          cd $HOME/ks/pterodactyl/panel
+          docker-compose down -d
+          echo "✅ Panel stopped."
+          
+      - name: Create Backup
+        if: always()
+        run: |
+          echo "📦 Creating backup"
+          cd $HOME/ks
+          sudo tar -czf "${GITHUB_WORKSPACE}/pterodactyl-backup.tar.gz" pterodactyl
+          ls -lh "${GITHUB_WORKSPACE}/pterodactyl-backup.tar.gz"
+
+      - name: Upload Backup
+        if: always()
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: panel-backups
+          name: "Latest Pterodactyl Backup"
+          body: "Full backup of $HOME/ks/pterodactyl"
+          files: pterodactyl-backup.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restart Workflow
+        if: always()
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Panel
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
