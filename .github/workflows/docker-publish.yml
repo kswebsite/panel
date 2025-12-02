@@ -55,7 +55,7 @@ jobs:
         run: |
           cd $HOME/ks/pterodactyl/panel
           rm docker-compose.yml || true
-          wget https://raw.githubusercontent.com/kswebsite/panel/refs/heads/main/docker-compose.yml
+          sudo wget https://raw.githubusercontent.com/kswebsite/panel/refs/heads/main/docker-compose.yml
           docker-compose up -d
           echo "✅ Panel started."
 
