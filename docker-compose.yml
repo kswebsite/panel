@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  ks-pterodactyl-panel:
+    image: ghcr.io/pterodactyl/panel:latest
+    container_name: ks-pterodactyl-panel
+    restart: unless-stopped
+    environment:
+      APP_URL: "https://ks-panel.pages.dev"
+      APP_TIMEZONE: "Asia/Kolkata"
+      APP_SERVICE_AUTHOR: "kswarrior@ksmail.com"
+      APP_ENV: "production"
+      TRUSTED_PROXIES: "*"
+      CACHE_DRIVER: "file"
+      SESSION_DRIVER: "database"
+      QUEUE_DRIVER: "database"
+      DB_CONNECTION: "sqlite"
+    volumes:
+      - ./data:/app/storage
+    ports:
+      - "50:80"
+networks:
+  default:
+    driver: bridge
