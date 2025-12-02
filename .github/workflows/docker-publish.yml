@@ -48,7 +48,7 @@ jobs:
         run: |
           sudo curl -L "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" -o /usr/local/bin/cloudflared
           sudo chmod +x /usr/local/bin/cloudflared
-          sudo cloudflared service install [key]
+          sudo cloudflared service install eyJhIjoiZTJkZjY3MDI5ZWZlZTBmY2JhM2ExMjNjN2VmNTcxNTAiLCJ0IjoiYTNkM2Y0YTctMTg5OS00YWRlLWE2ZWEtMDZjYTk3YjNiNzM0IiwicyI6Ik9HWm1ZemxtTkdJdFpXUXhPUzAwTmpFeExUazFaR1V0TnpCak5qTmpOVE15TURBeiJ9
       
       - name: Start Panel
         run: |
@@ -102,6 +102,6 @@ jobs:
         if: always()
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: Panel
+          workflow: Panel 5
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
