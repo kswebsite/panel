@@ -15,6 +15,7 @@ jobs:
   panel:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+
     steps:
       - name: Install Docker Compose
         run: |
@@ -49,7 +50,7 @@ jobs:
           sudo curl -L "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" -o /usr/local/bin/cloudflared
           sudo chmod +x /usr/local/bin/cloudflared
           sudo cloudflared service install eyJhIjoiZTJkZjY3MDI5ZWZlZTBmY2JhM2ExMjNjN2VmNTcxNTAiLCJ0IjoiYTNkM2Y0YTctMTg5OS00YWRlLWE2ZWEtMDZjYTk3YjNiNzM0IiwicyI6Ik9HWm1ZemxtTkdJdFpXUXhPUzAwTmpFeExUazFaR1V0TnpCak5qTmpOVE15TURBeiJ9
-      
+
       - name: Start Panel
         run: |
           cd $HOME/ks/pterodactyl/panel
@@ -57,12 +58,12 @@ jobs:
           wget https://raw.githubusercontent.com/kswebsite/panel/refs/heads/main/docker-compose.yml
           docker-compose up -d
           echo "✅ Panel started."
-          
+
       - name: Keep Alive
         run: |
           echo "⏳"
           sleep 20000
-          
+
       - name: Start Tmate
         if: always()
         run: |
@@ -71,14 +72,18 @@ jobs:
           tmate -S /tmp/tmate.sock new-session -d
           tmate -S /tmp/tmate.sock wait tmate-ready
           tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' || true
+
+      - name: Error
+        if: failure()
+        run: |
           sleep 500
 
       - name: Stop Panel
         run: |
           cd $HOME/ks/pterodactyl/panel
-          docker-compose down -d
+          docker-compose down
           echo "✅ Panel stopped."
-          
+
       - name: Create Backup
         if: always()
         run: |
