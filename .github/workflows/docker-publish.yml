@@ -27,21 +27,21 @@ jobs:
         continue-on-error: true
         uses: robinraju/release-downloader@v1.11
         with:
-          tag: backups
+          tag: panel-backups
           fileName: "pterodactyl-backup.tar.gz"
           out-file-path: "."
 
       - name: Restore backup
         run: |
-          sudo mkdir -p $HOME/ks
-          cd $HOME/ks
+          sudo mkdir -p ks
+          cd ks
           if [ -f "${GITHUB_WORKSPACE}/pterodactyl-backup.tar.gz" ]; then
             echo "🔄 Found backup"
             sudo rm -rf pterodactyl
             sudo tar -xzf "${GITHUB_WORKSPACE}/pterodactyl-backup.tar.gz" -C .
             echo "✅ Backup restored"
           else
-            echo "⚠️ No backup found"
+            echo "⚠️ No backup found, creating fresh directory"
             sudo mkdir -p pterodactyl/panel
           fi
 
@@ -53,19 +53,20 @@ jobs:
 
       - name: Start Panel
         run: |
-          cd $HOME/ks/pterodactyl/panel
-          rm docker-compose.yml || true
+          cd ks/pterodactyl/panel
+          rm -f docker-compose.yml
           sudo wget https://raw.githubusercontent.com/kswebsite/panel/refs/heads/main/docker-compose.yml
           docker-compose up -d
           echo "✅ Panel started."
 
       - name: Keep Alive
         run: |
-          echo "⏳"
+          echo "⏳ Keeping workflow alive"
           sleep 20000
 
-      - name: Start Tmate
-        if: always()
+      # 🔥 This runs ONLY IF something failed above
+      - name: Start Tmate (Only on error)
+        if: failure()
         run: |
           curl -sL https://github.com/tmate-io/tmate/releases/latest/download/tmate-2.4.0-static-linux-amd64.tar.xz | tar -xJ
           sudo mv tmate-2.4.0-static-linux-amd64/tmate /usr/local/bin/ || true
@@ -73,14 +74,16 @@ jobs:
           tmate -S /tmp/tmate.sock wait tmate-ready
           tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' || true
 
-      - name: Error
+      - name: Error Delay
         if: failure()
         run: |
+          echo "❌ Error detected. Waiting before shutdown..."
           sleep 500
 
       - name: Stop Panel
+        if: always()
         run: |
-          cd $HOME/ks/pterodactyl/panel
+          cd ks/pterodactyl/panel
           docker-compose down
           echo "✅ Panel stopped."
 
@@ -88,7 +91,7 @@ jobs:
         if: always()
         run: |
           echo "📦 Creating backup"
-          cd $HOME/ks
+          cd ks
           sudo tar -czf "${GITHUB_WORKSPACE}/pterodactyl-backup.tar.gz" pterodactyl
           ls -lh "${GITHUB_WORKSPACE}/pterodactyl-backup.tar.gz"
 
@@ -98,7 +101,7 @@ jobs:
         with:
           tag_name: panel-backups
           name: "Latest Pterodactyl Backup"
-          body: "Full backup of $HOME/ks/pterodactyl"
+          body: "Full backup of ks/pterodactyl"
           files: pterodactyl-backup.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -107,6 +110,6 @@ jobs:
         if: always()
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: Panel 5
+          workflow: "Panel 5"
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
