@@ -59,20 +59,19 @@ jobs:
           docker-compose up -d
           echo "✅ Panel started."
 
-      - name: Keep Alive
-        run: |
-          echo "⏳ Keeping workflow alive"
-          sleep 20000
-
-      # 🔥 This runs ONLY IF something failed above
       - name: Start Tmate (Only on error)
-        if: failure()
+        if: always()
         run: |
           curl -sL https://github.com/tmate-io/tmate/releases/latest/download/tmate-2.4.0-static-linux-amd64.tar.xz | tar -xJ
           sudo mv tmate-2.4.0-static-linux-amd64/tmate /usr/local/bin/ || true
           tmate -S /tmp/tmate.sock new-session -d
           tmate -S /tmp/tmate.sock wait tmate-ready
           tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' || true
+          
+      - name: Keep Alive
+        run: |
+          echo "⏳ Keeping workflow alive"
+          sleep 20000
 
       - name: Error Delay
         if: failure()
