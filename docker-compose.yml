@@ -42,7 +42,6 @@ services:
     restart: always
     ports:
       - "80:80"
-      - "443:443"
     links:
       - database
       - cache
@@ -50,7 +49,7 @@ services:
       - "./var/:/app/var/"
       - "./nginx/:/etc/nginx/http.d/"
       - "./certs/:/etc/letsencrypt/"
-      - "./logs/:/app/storage/logs"
+      - "./storage/:/app/storage/"
     environment:
       <<: [*panel-environment, *mail-environment]
       DB_PASSWORD: *db-password
