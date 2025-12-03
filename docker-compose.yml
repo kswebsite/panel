@@ -1,30 +1,21 @@
 version: '3.8'
 
 x-common:
-  db-password: &db-password "${DB_PASS}"
-
-  db-environment: &db-environment
-    MYSQL_ROOT_PASSWORD: "KSRootPass@123"
-    MYSQL_PASSWORD: *db-password
-
-  panel-environment: &panel-environment
-    APP_URL: "https://${DOMAIN}"
-    APP_TIMEZONE: "Asia/Kolkata"
-    APP_SERVICE_AUTHOR: "${EMAIL}"
+  database:
+    &db-environment
+    MYSQL_PASSWORD: &db-password "CHANGE_ME"
+    MYSQL_ROOT_PASSWORD: "CHANGE_ME_TOO"
+  panel:
+    &panel-environment
+    APP_URL: "https://pterodactyl.example.com"
+    APP_TIMEZONE: "UTC"
+    APP_SERVICE_AUTHOR: "noreply@example.com"
     TRUSTED_PROXIES: "*"
-    APP_ENV: "production"
-    APP_ENVIRONMENT_ONLY: "false"
-    CACHE_DRIVER: "redis"
-    SESSION_DRIVER: "redis"
-    QUEUE_DRIVER: "redis"
-    REDIS_HOST: "cache"
-    DB_HOST: "database"
-    DB_PORT: "3306"
-
-  mail-environment: &mail-environment
-    MAIL_FROM: "${EMAIL}"
+  mail:
+    &mail-environment
+    MAIL_FROM: "noreply@example.com"
     MAIL_DRIVER: "smtp"
-    MAIL_HOST: "ksmail"
+    MAIL_HOST: "mail"
     MAIL_PORT: "1025"
     MAIL_USERNAME: ""
     MAIL_PASSWORD: ""
@@ -33,80 +24,47 @@ x-common:
 services:
   database:
     image: mariadb:10.5
-    restart: unless-stopped
+    restart: always
     command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - "/srv/pterodactyl/database:/var/lib/mysql"
     environment:
       <<: *db-environment
-      MYSQL_DATABASE: "${DB_NAME}"
-      MYSQL_USER: "${DB_USER}"
-    volumes:
-      - "/ks/pterodactyl/panel/database:/var/lib/mysql"
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"\$MYSQL_ROOT_PASSWORD\" --silent || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      MYSQL_DATABASE: "panel"
+      MYSQL_USER: "pterodactyl"
 
   cache:
     image: redis:alpine
-    restart: unless-stopped
-    volumes:
-      - "/ks/pterodactyl/panel/cache:/data"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  ksmail:
-    image: mailhog/mailhog:latest
-    restart: unless-stopped
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "2"
+    restart: always
 
   panel:
     image: ghcr.io/pterodactyl/panel:latest
-    restart: unless-stopped
+    restart: always
     ports:
-      - "50:80"
-    depends_on:
+      - "80:80"
+      - "443:443"
+    links:
       - database
       - cache
-      - ksmail
     volumes:
-      - "/ks/pterodactyl/panel/var:/app/var"
-      - "/ks/pterodactyl/panel/nginx:/etc/nginx/http.d"
-      - "/ks/pterodactyl/panel/certs:/etc/letsencrypt"
-      - "/ks/pterodactyl/logs/:/app/storage/logs"
+      - "/srv/pterodactyl/var/:/app/var/"
+      - "/srv/pterodactyl/nginx/:/etc/nginx/http.d/"
+      - "/srv/pterodactyl/certs/:/etc/letsencrypt/"
+      - "/srv/pterodactyl/logs/:/app/storage/logs"
     environment:
       <<: [*panel-environment, *mail-environment]
       DB_PASSWORD: *db-password
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
+      APP_ENV: "production"
+      APP_ENVIRONMENT_ONLY: "false"
+      CACHE_DRIVER: "redis"
+      SESSION_DRIVER: "redis"
+      QUEUE_DRIVER: "redis"
+      REDIS_HOST: "cache"
+      DB_HOST: "database"
+      DB_PORT: "3306"
 
 networks:
   default:
-    driver: bridge
     ipam:
       config:
         - subnet: 172.20.0.0/16
